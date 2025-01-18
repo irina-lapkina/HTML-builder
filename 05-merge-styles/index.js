@@ -1,59 +1,36 @@
-const fs = require('fs');
+const fs = require('fs/promises');
 const path = require('path');
 
-// Define the paths
-const stylesDir = path.join(__dirname, 'styles');
-const outputDir = path.join(__dirname, 'project-dist');
-const outputFile = path.join(outputDir, 'bundle.css');
+async function mergeStyles() {
+  const stylesDir = path.join(__dirname, 'styles');
+  const outputDir = path.join(__dirname, 'project-dist');
+  const bundlePath = path.join(outputDir, 'bundle.css');
 
-// Read styles directory
-fs.readdir(stylesDir, (err, files) => {
-  if (err) {
-    console.error('Error reading styles directory:', err);
-    return;
+  try {
+    // Ensure the output directory exists
+    await fs.mkdir(outputDir, { recursive: true });
+
+    // Read all items in the styles directory
+    const items = await fs.readdir(stylesDir, { withFileTypes: true });
+
+    // Collect CSS file contents
+    const styleContents = await Promise.all(
+      items
+        .filter((item) => item.isFile() && path.extname(item.name) === '.css')
+        .map(async (item) => {
+          const filePath = path.join(stylesDir, item.name);
+          const content = await fs.readFile(filePath, 'utf8');
+          return content;
+        }),
+    );
+
+    // Write the collected styles to bundle.css
+    await fs.writeFile(bundlePath, styleContents.join('\n'), 'utf8');
+
+    console.log('Styles have been merged successfully into bundle.css');
+  } catch (error) {
+    console.error('Error while merging styles:', error);
   }
+}
 
-  // Filter out only .css files
-  const cssFiles = files.filter(file => path.extname(file) === '.css');
-
-  // Initialize an array to hold the contents of the CSS files
-  const cssContents = [];
-
-  // Iterate over each CSS file
-  cssFiles.forEach(file => {
-    const filePath = path.join(stylesDir, file);
-
-    // Check if the path is a file
-    fs.stat(filePath, (err, stats) => {
-      if (err) {
-        console.error(`Error checking if path is a file: ${filePath}`, err);
-        return;
-      }
-
-      if (stats.isFile()) {
-        // Read the file contents
-        fs.readFile(filePath, 'utf8', (err, data) => {
-          if (err) {
-            console.error(`Error reading CSS file: ${filePath}`, err);
-            return;
-          }
-
-          // Push the content to the array
-          cssContents.push(data);
-
-          // Check if all files have been read
-          if (cssContents.length === cssFiles.length) {
-            // Join all contents and write to bundle.css
-            fs.writeFile(outputFile, cssContents.join('\n'), 'utf8', err => {
-              if (err) {
-                console.error('Error writing to bundle.css:', err);
-                return;
-              }
-              console.log('bundle.css has been successfully created');
-            });
-          }
-        });
-      }
-    });
-  });
-});
+mergeStyles();
