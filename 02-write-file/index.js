@@ -38,4 +38,4 @@ const farewell = () => {
 
 rl.on('line', handleInput);
 
-process.on('SIGINT', farewell);
+rl.on('SIGINT', farewell);
